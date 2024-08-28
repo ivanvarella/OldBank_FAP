@@ -1,0 +1,214 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% if editar_conta %}
+    <title>Edição de Conta</title>
+  {% else %}
+    <title>Cadastro de Conta</title>
+  {% endif %}
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+</head>
+<body>
+
+  <header>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Old and Traditional Bank</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="{% url "logar" %}">Home</a>
+                    </li>
+                    {% comment %} <li class="nav-item">
+                        <a class="nav-link" href="#">Contas</a>
+                    </li> {% endcomment %}
+                    {% comment %} <li class="nav-item">
+                        <a class="nav-link" href="#">Usuários</a>
+                    </li> {% endcomment %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url "cadastro" %}">Cadastro Usuário</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url "listar_contas" %}">Listar contas</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'deslogar' %}" onclick="return confirm('Deseja realmente sair?');">Sair</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+</header>
+
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-6">
+        {% if editar_conta %}
+        <h2 class="text-center mb-4">Edição de Conta</h2>
+        {% else %}
+          <h2 class="text-center mb-4">Cadastro de Conta</h2>
+        {% endif %}
+
+        {% if messages %}
+              {% for message in messages %}
+                  <section class="alert {{message.tags}}">
+                      {{message}}
+                  </section>
+              {% endfor %}
+          {% endif %}
+        
+        {% if editar_conta %}
+          <form action="{% url 'editar_conta' dados_conta_cliente.numero_conta %}" method="POST"> {% csrf_token %}
+        {% else %}
+          <form action="{% url 'cadastrar_conta' %}" method="POST"> {% csrf_token %}
+        {% endif %}
+          <div class="mb-3">
+            <!-- Nome Cliente -->
+            {% if editar_conta %}
+            <label for="tipo_conta" class="form-label">Cliente (não editável)</label>
+              {% with nome_completo=dados_cliente.first_name|add:" "|add:dados_cliente.last_name %}
+                <input type="text" class="form-control" id="nome_cliente_nao_editavel" name="nome_cliente_nao_editavel" value="{{ nome_completo }}" readonly>
+              {% endwith %}
+            {% else %}
+              <label for="tipo_conta" class="form-label">Selecione o cliente</label>
+              <select class="form-select" id="cliente" name="cliente" required>
+                {% for user in usuarios_banco %}
+                  <option value="{{ user.id }}">Nome: {{ user.first_name }} {{ user.last_name }} - Username: {{ user.username }}</option>
+                {% endfor %}
+              </select>
+            {% endif %}
+          </div>
+
+          <!-- Tipo Conta -->
+          <div class="mb-3">
+            {% if editar_conta %}
+              <label for="tipo_conta" class="form-label">Tipo de Conta (não editável)</label>
+                {% for tipo_conta_value, tipo_conta_label in tipo_conta_choices %}
+                  {% if tipo_conta_value == dados_conta_cliente.tipo_conta %}
+                    <input type="text" class="form-control" id="tipo_conta_nao_editavel" name="tipo_conta_nao_editavel" value="{{ tipo_conta_label }}" readonly>
+                  {% endif %}
+                {% endfor %}
+            {% else %}
+              <label for="tipo_conta" class="form-label">Tipo de Conta</label>
+              <select class="form-select" id="tipo_conta" name="tipo_conta" required>
+                {% for tipo_conta_value, tipo_conta_label in tipo_conta_choices %}
+                  <option value="{{ tipo_conta_value }}">{{ tipo_conta_label }}</option>
+                {% endfor %}
+              </select>
+            {% endif %}
+          </div>
+
+          <!-- Saldo Inicial ou Saldo Atual -->
+          {% if editar_conta %}
+            <div class="mb-3">
+              <label for="saldo" class="form-label">Saldo Atual (não editável)</label>
+              <input type="text" class="form-control" id="saldo" name="saldo" value="{{dados_conta_cliente.saldo}}" readonly>
+            </div>
+          {% else %}
+            <div class="mb-3">
+              <label for="saldo" class="form-label">Saldo Inicial</label>
+              <input type="text" class="form-control" id="saldo" name="saldo" value="R$ 0,00" required>
+            </div>
+          {% endif %}
+          
+          <!-- Limite Especial -->
+          {% if editar_conta %}
+            <div class="mb-3">
+              <label for="limite_especial" class="form-label">Limite Especial</label>
+              <input type="text" class="form-control" id="limite_especial" value="R$ {{dados_conta_cliente.limite_especial}}" name="limite_especial">
+            </div>
+          {% else %}
+            <div class="mb-3">
+              <label for="limite_especial" class="form-label">Limite Especial</label>
+              <input type="text" class="form-control" id="limite_especial" value="R$ 0,00" name="limite_especial">
+            </div>
+          {% endif %}
+
+          <!-- Conta Ativa ou Encerrada -->
+          {% comment %} {% if editar_conta %}
+            <div class="form-check mb-3">
+              {% if dados_conta_cliente.ativa == 1%}
+                  <input type="checkbox" class="form-check-input" id="ativa" name="ativa" checked>
+              {% else %}
+                <input type="checkbox" class="form-check-input" id="ativa" name="ativa">
+              {% endif %}
+              <label class="form-check-label" for="ativa">Ativa</label>
+            </div>
+          {% else %}
+            <div class="form-check mb-3">
+              <input type="checkbox" class="form-check-input" id="ativa" name="ativa" checked>
+              <label class="form-check-label" for="ativa">Ativa</label>
+            </div>
+          {% endif %} {% endcomment %}
+
+          <!-- Conta Ativa ou Encerrada -->
+          <div class="form-check mb-3">
+            {% if editar_conta %}
+              <!-- Caso de edição -->
+              {% if dados_conta_cliente.ativa %}
+                <!-- Conta está ativa -->
+                {% if dados_conta_cliente.saldo == 0 %}
+                  <!-- Saldo é 0, pode alterar o estado do checkbox -->
+                  <input type="checkbox" class="form-check-input" id="ativa" name="ativa" checked>
+                {% else %}
+                  <!-- Saldo não é 0, checkbox desmarcado e desativado -->
+                  <input type="checkbox" class="form-check-input" id="ativa" name="ativa" disabled>
+                  <label class="form-check-label" for="ativa">Ativa (A conta só pode ser encerrada caso o saldo seja R$ 0,00)</label>
+                {% endif %}
+              {% else %}
+                <!-- Conta está desativada -->
+                <input type="checkbox" class="form-check-input" id="ativa" name="ativa">
+                <label class="form-check-label" for="ativa">Ativa</label>
+              {% endif %}
+            {% else %}
+              <!-- Caso de criação de nova conta -->
+              <input type="checkbox" class="form-check-input" id="ativa" name="ativa" checked>
+              <label class="form-check-label" for="ativa">Ativa</label>
+            {% endif %}
+            
+          </div>
+          
+          <button type="submit" class="btn btn-primary">Cadastrar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Função para formatar os campos como moeda brasileira
+    function formatarMoeda(elemento) {
+      let valor = elemento.value;
+      
+      // Remove qualquer caractere que não seja dígito ou vírgula
+      valor = valor.replace(/\D/g, "");
+      
+      // Formata como R$ XX.XXX,XX
+      valor = (valor / 100).toFixed(2) + "";
+      valor = valor.replace(".", ",");
+      valor = valor.replace(/(\d)(?=(\d{3})+\,)/g, "$1.");
+      
+      // Adiciona o símbolo de moeda
+      elemento.value = "R$ " + valor;
+    }
+
+    // Adiciona o evento de input aos campos saldo e limite_especial
+    document.getElementById('saldo').addEventListener('input', function() {
+      formatarMoeda(this);
+    });
+
+    document.getElementById('limite_especial').addEventListener('input', function() {
+      formatarMoeda(this);
+    });
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+
+</body>
+</html>
