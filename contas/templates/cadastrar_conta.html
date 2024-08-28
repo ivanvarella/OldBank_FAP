@@ -152,27 +152,19 @@
           <div class="form-check mb-3">
             {% if editar_conta %}
               <!-- Caso de edição -->
-              {% if dados_conta_cliente.ativa %}
-                <!-- Conta está ativa -->
-                {% if dados_conta_cliente.saldo == 0 %}
-                  <!-- Saldo é 0, pode alterar o estado do checkbox -->
-                  <input type="checkbox" class="form-check-input" id="ativa" name="ativa" checked>
-                {% else %}
-                  <!-- Saldo não é 0, checkbox desmarcado e desativado -->
-                  <input type="checkbox" class="form-check-input" id="ativa" name="ativa" disabled>
-                  <label class="form-check-label" for="ativa">Ativa (A conta só pode ser encerrada caso o saldo seja R$ 0,00)</label>
-                {% endif %}
-              {% else %}
-                <!-- Conta está desativada -->
-                <input type="checkbox" class="form-check-input" id="ativa" name="ativa">
+              {% if dados_conta_cliente.saldo == 0 %}
+                <!-- Saldo zero, pode encerrar -->
+                <input type="checkbox" class="form-check-input" id="ativa" name="ativa" {% if dados_conta_cliente.ativa %} checked {% endif %}>
                 <label class="form-check-label" for="ativa">Ativa</label>
+              {% else %}
+                <div class="alert alert-warning" role="alert">
+                  Só pode encerrar a conta caso o saldo da conta seja R$ 0,00.
+                </div>
               {% endif %}
             {% else %}
-              <!-- Caso de criação de nova conta -->
               <input type="checkbox" class="form-check-input" id="ativa" name="ativa" checked>
               <label class="form-check-label" for="ativa">Ativa</label>
             {% endif %}
-            
           </div>
           
           <button type="submit" class="btn btn-primary">Cadastrar</button>

@@ -1,6 +1,7 @@
 from django.db import models
 from contas.models import Conta
 from decimal import Decimal
+from django.db.models import Avg
 
 
 class Movimentacao(models.Model):
@@ -53,6 +54,35 @@ class Movimentacao(models.Model):
                 self.saldo_apos = self.saldo_antes - self.valor
             elif self.tipo_movimentacao == 5:  # Encerramento de conta
                 # Encerramento de Conta: saldo_apos deve ser 0
-                self.saldo_apos = 0
+                self.saldo_apos = Decimal("0.00")
+
+        # # Calcula o saldo médio da conta
+        # saldo_medio = Movimentacao.objects.filter(conta=self.conta).aggregate(
+        #     media_saldo_antes=Avg("saldo_antes"), media_saldo_apos=Avg("saldo_apos")
+        # )
+
+        # # Modificação: Usa o método get com um valor padrão para evitar NoneType
+        # media_saldo_antes = saldo_medio.get("media_saldo_antes", Decimal("0.00"))
+        # media_saldo_apos = saldo_medio.get("media_saldo_apos", Decimal("0.00"))
+
+        # # Modificação: Calcula a média com valores garantidos como Decimal
+        # self.saldo_media = (media_saldo_antes + media_saldo_apos) / 2
 
         super().save(*args, **kwargs)
+
+        # Recalcular o saldo médio após a salva
+        self.recalcular_saldo_medio()
+
+    def recalcular_saldo_medio(self):
+        # Calcula o saldo médio da conta
+        saldo_medio = Movimentacao.objects.filter(conta=self.conta).aggregate(
+            media_saldo_antes=Avg("saldo_antes"), media_saldo_apos=Avg("saldo_apos")
+        )
+
+        media_saldo_antes = saldo_medio.get("media_saldo_antes", Decimal("0.00"))
+        media_saldo_apos = saldo_medio.get("media_saldo_apos", Decimal("0.00"))
+
+        saldo_media = (media_saldo_antes + media_saldo_apos) / 2
+
+        # Atualiza apenas o campo saldo_media para evitar loops de salvamento
+        Movimentacao.objects.filter(pk=self.pk).update(saldo_media=saldo_media)

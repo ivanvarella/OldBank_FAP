@@ -187,6 +187,11 @@ def editar_conta(request, numero_conta):
             conta.limite_especial = Decimal(limite_especial)
             conta.ativa = ativa
 
+            print(
+                f"\n\nLimite Atualizado: {Decimal(limite_especial)} - Ativa: {ativa}\n\n"
+            )
+            input("STOPPPPPP")
+
             conta.save()
             messages.success(request, "Conta atualizada com sucesso.")
         except ValueError:
@@ -285,6 +290,11 @@ def conta_cliente(request):
                 # Calcula novo saldo após operação de depósito
                 saldo_atualizado = saldo + valor_deposito
                 data_atual = datetime.now()
+
+                # print(
+                #     f"\n\nSaldo Atualizado: {saldo_atualizado} - Valor: {valor_deposito}\n\n"
+                # )
+                # input("Pressione Enter para continuar...")
 
                 # Salva a movimentação no banco
                 try:
