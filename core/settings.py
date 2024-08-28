@@ -73,20 +73,22 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "core.wsgi.application"
 
-
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
+# Utilizar o código abaixo e comentar os outros caso queira utilizar o SQLite como banco de dados
+# ---------------------------------------------------------------
 # DATABASES = {
 #     "default": {
 #         "ENGINE": "django.db.backends.sqlite3",
 #         "NAME": BASE_DIR / "db.sqlite3",
 #     }
 # }
+# ---------------------------------------------------------------
 
 
-# TODO: Apagar a função de obter o ip do Windows - Particularidade do WSL
-####################################################################################
+# Utilizar o código abaixo caso utilize o WSL no VS Code e queira utilizar o MySQL como banco de dados
+# --------------------------------------------------------------------
 # Obter o IP do Windows dentro do WSL usando PowerShell
 import subprocess
 
@@ -120,6 +122,7 @@ def get_windows_ip():
         print(f"Erro: {e}")
         return None
 
+
 # Somente caso você utilize o WSL dentro do VS Code, pois desta forma ele tem
 # IP diferente do Windows (onde se encontra o seu MySQL)
 host_windows = get_windows_ip()
@@ -138,6 +141,22 @@ DATABASES = {
         },
     }
 }
+# -------------------------------------------------------------------------------
+
+# Caso vá utilizar o MySQL e não utilizar o WSL no Vs Code, descomente (e comente os demais) o código
+# abaixo modificando a configuração do seu banco de dados
+# -----------------------------------------------------------------------------
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'old_bank_db',
+#         'USER': 'seu_usuario_mysql',
+#         'PASSWORD': 'sua_senha_mysql',
+#         'HOST': 'localhost',
+#         'PORT': '3306',
+#     }
+# }
+# -----------------------------------------------------------------------------
 
 
 # Password validation
