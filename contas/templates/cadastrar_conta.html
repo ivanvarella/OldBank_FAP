@@ -143,6 +143,8 @@
                 <div class="alert alert-warning" role="alert">
                   Só pode encerrar a conta caso o saldo da conta seja R$ 0,00.
                 </div>
+                <!-- Campo oculto para enviar o valor atual de "ativa" -->
+                <input type="hidden" name="ativa" value="{% if dados_conta_cliente.ativa %}on{% else %}off{% endif %}">
               {% endif %}
             {% else %}
               <input type="checkbox" class="form-check-input" id="ativa" name="ativa" checked>

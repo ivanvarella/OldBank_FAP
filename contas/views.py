@@ -180,17 +180,22 @@ def editar_conta(request, numero_conta):
 
         # Resgatando os dados do formulário de edição de conta
         limite_especial = formatar_valor(request.POST.get("limite_especial"))
-        ativa = request.POST.get("ativa") == "on"
+        print(f"\n\nAtiva do request: {request.POST.get('ativa') == 'on'}\n\n")
+        # Verifica se o campo "ativa" foi enviado na solicitação POST
+        # Verifica se o campo "ativa" foi enviado na solicitação POST
+        if request.POST.get("ativa") == "on":
+            ativa = True
+        else:
+            ativa = (
+                False  # Mantém o valor atual se "ativa" não estiver na solicitação POST
+            )
+
+        print(f"\n\nativa após lógica: {ativa}\n\n")
 
         try:
             # Atualizando os campos específicos
             conta.limite_especial = Decimal(limite_especial)
             conta.ativa = ativa
-
-            print(
-                f"\n\nLimite Atualizado: {Decimal(limite_especial)} - Ativa: {ativa}\n\n"
-            )
-            input("STOPPPPPP")
 
             conta.save()
             messages.success(request, "Conta atualizada com sucesso.")
