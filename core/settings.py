@@ -120,10 +120,11 @@ def get_windows_ip():
         print(f"Erro: {e}")
         return None
 
-
+# Somente caso você utilize o WSL dentro do VS Code, pois desta forma ele tem
+# IP diferente do Windows (onde se encontra o seu MySQL)
 host_windows = get_windows_ip()
 
-
+# Configurar a conexão com seu MySQL aqui:
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
