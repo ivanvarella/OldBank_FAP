@@ -132,23 +132,6 @@
           {% endif %}
 
           <!-- Conta Ativa ou Encerrada -->
-          {% comment %} {% if editar_conta %}
-            <div class="form-check mb-3">
-              {% if dados_conta_cliente.ativa == 1%}
-                  <input type="checkbox" class="form-check-input" id="ativa" name="ativa" checked>
-              {% else %}
-                <input type="checkbox" class="form-check-input" id="ativa" name="ativa">
-              {% endif %}
-              <label class="form-check-label" for="ativa">Ativa</label>
-            </div>
-          {% else %}
-            <div class="form-check mb-3">
-              <input type="checkbox" class="form-check-input" id="ativa" name="ativa" checked>
-              <label class="form-check-label" for="ativa">Ativa</label>
-            </div>
-          {% endif %} {% endcomment %}
-
-          <!-- Conta Ativa ou Encerrada -->
           <div class="form-check mb-3">
             {% if editar_conta %}
               <!-- Caso de edição -->
