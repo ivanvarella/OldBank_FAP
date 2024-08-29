@@ -77,7 +77,8 @@ def cadastrar_conta(request):
 
     if not request.user.is_superuser:
         messages.warning(
-            request, "Acesso negado, somente Gerentes podem editar contas."
+            request,
+            "Acesso negado, somente Gerentes podem abrir novas contas ou editar contas.",
         )
         return redirect("conta_cliente")
 
@@ -86,20 +87,6 @@ def cadastrar_conta(request):
 
         # Pega do models os tipos de contas para preencher no select, caso alterado já altera no form automaticamente
         TIPO_CONTA_CHOICES = Conta.TIPO_CONTA_CHOICES
-
-        # # Filtra usuários que possuem menos de 2 contas
-        # usuarios_banco = User.objects.annotate(num_contas=Count("conta")).filter(
-        #     num_contas__lt=2
-        # )
-
-        # # Adiciona as contas associadas aos usuários filtrados
-        # usuarios_com_contas = usuarios_banco.prefetch_related(
-        #     Prefetch(
-        #         "conta_set",
-        #         queryset=Conta.objects.all(),
-        #         to_attr="contas",  # Atributo personalizado onde as contas serão armazenadas
-        #     )
-        # )
 
         # Filtra usuários que possuem menos de 2 contas ativas
         usuarios_banco = User.objects.annotate(
@@ -145,10 +132,23 @@ def cadastrar_conta(request):
 
         # Cria a nova conta no banco de dados
         try:
-
             # Obtém a instância do User usando o ID do cliente
             usuario = User.objects.get(id=cliente_id)
 
+            # Verifica se o usuário já possui 2 contas ativas
+            # Provavelmente não vai acontecer por já estou filtrando no
+            # select das contas no method GET
+            contas_ativas = Conta.objects.filter(id_user=usuario, ativa=True)
+            if contas_ativas.count() >= 2:
+                messages.error(request, "O usuário já possui 2 contas ativas.")
+                return redirect("cadastrar_conta")
+
+            # Verifica se o usuário já possui uma conta do mesmo tipo
+            if contas_ativas.filter(tipo_conta=tipo_conta).exists():
+                messages.error(request, "O usuário já possui uma conta desse tipo.")
+                return redirect("cadastrar_conta")
+
+            # Só é salvo caso as verioficações acima não retornarem...
             nova_conta = Conta.objects.create(
                 id_user=usuario,
                 tipo_conta=tipo_conta,
@@ -166,12 +166,89 @@ def cadastrar_conta(request):
     return render(request, "cadastro_conta.html")
 
 
+# @login_required(login_url="/usuarios/logar")
+# def editar_conta(request, numero_conta):
+#     # Regata os dados da Conta para preencher os inputs de acordo com os dados do Banco
+#     dados_conta_cliente = Conta.objects.get(numero_conta=numero_conta)
+
+#     # Resgata os dados do cliente da Conta
+#     dados_cliente = User.objects.get(id=dados_conta_cliente.id_user.id)
+
+#     if not request.user.is_superuser:
+#         messages.warning(
+#             request, "Acesso negado, somente Gerentes podem editar contas."
+#         )
+#         return redirect("conta_cliente")
+
+#     # Resgata os dados CHOICES da models
+#     TIPO_CONTA_CHOICES = Conta.TIPO_CONTA_CHOICES
+
+#     # Flag para edição de conta
+#     editar_conta = True
+
+#     # Via link ou direto no navegador
+#     if request.method == "GET":
+
+#         return render(
+#             request,
+#             "cadastrar_conta.html",
+#             {
+#                 "tipo_conta_choices": TIPO_CONTA_CHOICES,
+#                 "dados_conta_cliente": dados_conta_cliente,
+#                 "dados_cliente": dados_cliente,
+#                 "editar_conta": editar_conta,
+#             },
+#         )
+
+#     elif request.method == "POST":
+#         conta = get_object_or_404(Conta, numero_conta=numero_conta)
+
+#         # Resgatando os dados do formulário de edição de conta
+#         limite_especial = formatar_valor(request.POST.get("limite_especial"))
+#         print(f"\n\nAtiva do request: {request.POST.get('ativa') == 'on'}\n\n")
+#         # Verifica se o campo "ativa" foi enviado na solicitação POST
+#         # Verifica se o campo "ativa" foi enviado na solicitação POST
+#         if request.POST.get("ativa") == "on":
+#             ativa = True
+#         else:
+#             ativa = (
+#                 False  # Mantém o valor atual se "ativa" não estiver na solicitação POST
+#             )
+
+#         print(f"\n\nativa após lógica: {ativa}\n\n")
+
+#         try:
+#             # Atualizando os campos específicos
+#             conta.limite_especial = Decimal(limite_especial)
+#             conta.ativa = ativa
+
+#             conta.save()
+#             messages.success(request, "Conta atualizada com sucesso.")
+#         except ValueError:
+#             messages.error(
+#                 request, "Erro ao atualizar a conta. Verifique os valores inseridos."
+#             )
+#             return render(
+#                 request,
+#                 "cadastrar_conta.html",
+#                 {
+#                     "tipo_conta_choices": TIPO_CONTA_CHOICES,
+#                     "dados_conta_cliente": dados_conta_cliente,
+#                     "dados_cliente": dados_cliente,
+#                     "editar_conta": editar_conta,
+#                 },
+#             )
+
+
+#         return redirect("listar_contas")
 @login_required(login_url="/usuarios/logar")
 def editar_conta(request, numero_conta):
-    # Regata os dados da Conta para preencher os inputs de acordo com os dados do Banco
-    dados_conta_cliente = Conta.objects.get(numero_conta=numero_conta)
+    """
+    Edita os dados de uma conta existente.
+    """
 
-    # Resgata os dados do cliente da Conta
+    # Obtém os dados da Conta e do Cliente
+    dados_conta_cliente = get_object_or_404(Conta, numero_conta=numero_conta)
     dados_cliente = User.objects.get(id=dados_conta_cliente.id_user.id)
 
     if not request.user.is_superuser:
@@ -188,7 +265,6 @@ def editar_conta(request, numero_conta):
 
     # Via link ou direto no navegador
     if request.method == "GET":
-
         return render(
             request,
             "cadastrar_conta.html",
@@ -205,21 +281,50 @@ def editar_conta(request, numero_conta):
 
         # Resgatando os dados do formulário de edição de conta
         limite_especial = formatar_valor(request.POST.get("limite_especial"))
-        print(f"\n\nAtiva do request: {request.POST.get('ativa') == 'on'}\n\n")
-        # Verifica se o campo "ativa" foi enviado na solicitação POST
-        # Verifica se o campo "ativa" foi enviado na solicitação POST
-        if request.POST.get("ativa") == "on":
-            ativa = True
-        else:
-            ativa = (
-                False  # Mantém o valor atual se "ativa" não estiver na solicitação POST
-            )
-
-        print(f"\n\nativa após lógica: {ativa}\n\n")
+        ativa = request.POST.get("ativa") == "on"
 
         try:
-            # Atualizando os campos específicos
+            # Atualiza o limite especial
             conta.limite_especial = Decimal(limite_especial)
+
+            # Verifica se a conta está sendo ativada
+            if ativa and not conta.ativa:
+                # Verifica se o usuário já possui 2 contas ativas
+                contas_ativas = Conta.objects.filter(id_user=conta.id_user, ativa=True)
+                if contas_ativas.count() >= 2:
+                    messages.error(
+                        request,
+                        "O usuário já possui 2 contas ativas e não pode ativar outra.",
+                    )
+                    return render(
+                        request,
+                        "cadastrar_conta.html",
+                        {
+                            "tipo_conta_choices": TIPO_CONTA_CHOICES,
+                            "dados_conta_cliente": dados_conta_cliente,
+                            "dados_cliente": dados_cliente,
+                            "editar_conta": editar_conta,
+                        },
+                    )
+
+                # Verifica se o usuário já possui uma conta ativa do mesmo tipo
+                if contas_ativas.filter(tipo_conta=conta.tipo_conta).exists():
+                    messages.error(
+                        request,
+                        f"O usuário já possui uma conta do tipo {conta.get_tipo_conta_display()} ativa.",
+                    )
+                    return render(
+                        request,
+                        "cadastrar_conta.html",
+                        {
+                            "tipo_conta_choices": TIPO_CONTA_CHOICES,
+                            "dados_conta_cliente": dados_conta_cliente,
+                            "dados_cliente": dados_cliente,
+                            "editar_conta": editar_conta,
+                        },
+                    )
+
+            # Atualiza o status de ativação da conta
             conta.ativa = ativa
 
             conta.save()
@@ -654,18 +759,38 @@ def ativar_conta(request, numero_conta):
 
     if not request.user.is_superuser:
         messages.warning(
-            request, "Acesso negado, somente Gerentes podem editar contas."
+            request, "Acesso negado, somente Gerentes podem ativar contas."
         )
         return redirect("conta_cliente")
 
+    # Obtém a conta a ser ativada
     conta = get_object_or_404(Conta, numero_conta=numero_conta)
 
-    if not conta.ativa:
-        conta.ativa = True
-        conta.save()
-        messages.success(request, "Conta ativada com sucesso.")
-    else:
+    # Verifica se a conta já está ativa
+    if conta.ativa:
         messages.info(request, "A conta já está ativa.")
+        return redirect("listar_contas")
+
+    # Verifica se o usuário já possui 2 contas ativas
+    contas_ativas = Conta.objects.filter(id_user=conta.id_user, ativa=True)
+    if contas_ativas.count() >= 2:
+        messages.error(
+            request, "O usuário já possui 2 contas ativas e não pode ativar outra."
+        )
+        return redirect("listar_contas")
+
+    # Verifica se o usuário já possui uma conta ativa do mesmo tipo
+    if contas_ativas.filter(tipo_conta=conta.tipo_conta).exists():
+        messages.error(
+            request,
+            f"O usuário já possui uma conta do tipo {conta.get_tipo_conta_display()} ativa.",
+        )
+        return redirect("listar_contas")
+
+    # Ativa a conta
+    conta.ativa = True
+    conta.save()
+    messages.success(request, "Conta ativada com sucesso.")
 
     return redirect("listar_contas")
 
