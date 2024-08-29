@@ -26,10 +26,37 @@ class Movimentacao(models.Model):
         return f"{tipo_movimentacao_display} de R${self.valor} em {self.data_movimentacao.strftime('%d/%m/%Y %H:%M:%S')}"
 
     def save(self, *args, **kwargs):
-        if self.tipo_movimentacao == 1:  # Abertura de conta
-            # Abertura de Conta: saldo_antes e saldo_apos será o valor da movimentação
-            self.saldo_antes = self.valor
-            self.saldo_apos = self.valor
+        if self.tipo_movimentacao == 1:  # Abertura de Conta
+            # Para abertura de conta, o saldo_antes deve ser o saldo da última movimentação ou 0 se for a primeira movimentação
+            if (
+                not self.pk
+            ):  # Apenas define saldo_antes e saldo_apos se a movimentação for nova
+                ultima_movimentacao = (
+                    Movimentacao.objects.filter(conta=self.conta)
+                    .order_by("-data_movimentacao")
+                    .first()
+                )
+                if ultima_movimentacao:
+                    self.saldo_antes = ultima_movimentacao.saldo_apos
+                else:
+                    self.saldo_antes = Decimal("0.00")
+
+            self.saldo_apos = (
+                self.valor
+            )  # O saldo_apos é igual ao valor da movimentação
+
+        elif self.tipo_movimentacao == 5:  # Encerramento de Conta
+            ultima_movimentacao = (
+                Movimentacao.objects.filter(conta=self.conta)
+                .order_by("-data_movimentacao")
+                .first()
+            )
+            if ultima_movimentacao:
+                self.saldo_antes = ultima_movimentacao.saldo_apos
+            else:
+                self.saldo_antes = Decimal("0.00")
+            self.saldo_apos = Decimal("0.00")  # O saldo_apos é 0 para encerramento
+
         else:
             # Para outros tipos de movimentação, o saldo_antes deve ser calculado com base na última movimentação
             ultima_movimentacao = (
@@ -43,30 +70,12 @@ class Movimentacao(models.Model):
                 self.saldo_antes = Decimal("0.00")
 
             # Calcula o saldo_apos com base no tipo de movimentação
-            if self.tipo_movimentacao == 2:  # Deposito
-                # Depósito: adiciona o valor ao saldo_antes
+            if self.tipo_movimentacao == 2:  # Depósito
                 self.saldo_apos = self.saldo_antes + self.valor
             elif self.tipo_movimentacao == 3:  # Saque
-                # Saque: subtrai o valor do saldo_antes
                 self.saldo_apos = self.saldo_antes - self.valor
-            elif self.tipo_movimentacao == 4:  # Transferencia
-                # Transferência: subtrai o valor do saldo_antes
+            elif self.tipo_movimentacao == 4:  # Transferência
                 self.saldo_apos = self.saldo_antes - self.valor
-            elif self.tipo_movimentacao == 5:  # Encerramento de conta
-                # Encerramento de Conta: saldo_apos deve ser 0
-                self.saldo_apos = Decimal("0.00")
-
-        # # Calcula o saldo médio da conta
-        # saldo_medio = Movimentacao.objects.filter(conta=self.conta).aggregate(
-        #     media_saldo_antes=Avg("saldo_antes"), media_saldo_apos=Avg("saldo_apos")
-        # )
-
-        # # Modificação: Usa o método get com um valor padrão para evitar NoneType
-        # media_saldo_antes = saldo_medio.get("media_saldo_antes", Decimal("0.00"))
-        # media_saldo_apos = saldo_medio.get("media_saldo_apos", Decimal("0.00"))
-
-        # # Modificação: Calcula a média com valores garantidos como Decimal
-        # self.saldo_media = (media_saldo_antes + media_saldo_apos) / 2
 
         super().save(*args, **kwargs)
 
