@@ -9,6 +9,7 @@ urlpatterns = [
     path("extrato/<str:numero_conta>/", views.extrato, name="extrato"),
     path("encerrar/<int:numero_conta>/", views.encerrar_conta, name="encerrar_conta"),
     path("ativar/<int:numero_conta>/", views.ativar_conta, name="ativar_conta"),
+    path("selecionar_conta/", views.selecionar_conta, name="selecionar_conta"),
     # path("listar_contas/", views.listar_contas, name="listar_contas"),
     # path("editar_conta/<int:conta_id>/", views.editar_conta, name="editar_conta"),
     # path("excluir_conta/<int:conta_id>/", views.excluir_conta, name="excluir_conta"),

@@ -5,6 +5,8 @@ from django.http import HttpResponse
 # Importar a classe referente a tabela usuarios que já vem no Django
 from django.contrib.auth.models import User
 
+from contas.models import Conta
+
 # Importar as constantes de mensagens do Django
 from django.contrib import messages
 
@@ -186,14 +188,17 @@ def editar_usuario(request):
 
 
 def logar(request):
-
     if request.user.is_authenticated:
         messages.add_message(
             request,
             constants.SUCCESS,
             f"{request.user.first_name}, você já está logado. Caso queira alternar a conta, faça logout primeiro.",
         )
-        return redirect("conta_cliente")
+        # Se não for Gerente:
+        if not request.user.is_superuser:
+            return redirect("conta_cliente")
+        else:
+            return redirect("listar_contas")
 
     if request.method == "GET":
         return render(request, "logar.html")
@@ -207,8 +212,12 @@ def logar(request):
             auth.login(
                 request, user
             )  # Verifica o usuário atrelado ao ip e o login (Sessão?)
-            return redirect("/contas/conta_cliente")
-            # return HttpResponse("Logou corretamente!!!!")
+            # Se não for Gerente
+            if not user.is_superuser:
+                return redirect("/contas/conta_cliente")
+            # Se for Gerente vai para o listar_contas
+            else:
+                return redirect("/contas/listar_contas")
 
         messages.add_message(request, constants.ERROR, "Usuário ou senha inválidos")
         return redirect("/usuarios/logar")

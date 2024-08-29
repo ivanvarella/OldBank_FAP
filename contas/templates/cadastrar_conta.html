@@ -80,8 +80,14 @@
               <label for="tipo_conta" class="form-label">Selecione o cliente</label>
               <select class="form-select" id="cliente" name="cliente" required>
                 {% for user in usuarios_banco %}
-                  <option value="{{ user.id }}">Nome: {{ user.first_name }} {{ user.last_name }} - Username: {{ user.username }}</option>
-                {% endfor %}
+                  {% if user.contas %}
+                      {% for conta in user.contas %}
+                          <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} - ({% if conta.tipo_conta == 1 %}Conta Corrente{% else %}Conta Poupança{% endif %})</option>
+                      {% endfor %}
+                  {% else %}
+                      <option value="{{ user.id }}">{{ user.first_name }} {{ user.last_name }} - Sem contas</option>
+                  {% endif %}
+              {% endfor %}
               </select>
             {% endif %}
           </div>

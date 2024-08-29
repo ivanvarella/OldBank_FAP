@@ -24,7 +24,7 @@ import json
 from decimal import Decimal
 
 # Para calular saldo médio da conta
-from django.db.models import Avg
+from django.db.models import Avg, Count, Prefetch, Q
 
 
 # Create your views here.
@@ -86,8 +86,33 @@ def cadastrar_conta(request):
 
         # Pega do models os tipos de contas para preencher no select, caso alterado já altera no form automaticamente
         TIPO_CONTA_CHOICES = Conta.TIPO_CONTA_CHOICES
-        usuarios_banco = User.objects.values(
-            "id", "first_name", "last_name", "username"
+
+        # # Filtra usuários que possuem menos de 2 contas
+        # usuarios_banco = User.objects.annotate(num_contas=Count("conta")).filter(
+        #     num_contas__lt=2
+        # )
+
+        # # Adiciona as contas associadas aos usuários filtrados
+        # usuarios_com_contas = usuarios_banco.prefetch_related(
+        #     Prefetch(
+        #         "conta_set",
+        #         queryset=Conta.objects.all(),
+        #         to_attr="contas",  # Atributo personalizado onde as contas serão armazenadas
+        #     )
+        # )
+
+        # Filtra usuários que possuem menos de 2 contas ativas
+        usuarios_banco = User.objects.annotate(
+            num_contas_ativas=Count("conta", filter=Q(conta__ativa=True))
+        ).filter(num_contas_ativas__lt=2)
+
+        # Adiciona as contas ativas associadas aos usuários filtrados
+        usuarios_com_contas = usuarios_banco.prefetch_related(
+            Prefetch(
+                "conta_set",
+                queryset=Conta.objects.filter(ativa=True),
+                to_attr="contas",  # Atributo personalizado onde as contas serão armazenadas
+            )
         )
 
         return render(
@@ -95,7 +120,7 @@ def cadastrar_conta(request):
             "cadastrar_conta.html",
             {
                 "tipo_conta_choices": TIPO_CONTA_CHOICES,
-                "usuarios_banco": usuarios_banco,
+                "usuarios_banco": usuarios_com_contas,
             },
         )
 
@@ -220,19 +245,48 @@ def editar_conta(request, numero_conta):
 @login_required(login_url="/usuarios/logar")
 def conta_cliente(request):
 
-    # Verifica se o user tem contas cadastradas
-    try:
-        dados_conta_cliente_verificacao = Conta.objects.get(id_user=request.user.id)
-    except Conta.DoesNotExist:
-        messages.warning(request, "Usuário ainda não possui Contas Bancárias.")
-        if not request.user.is_superuser:
-            return redirect("editar_usuario")
-        else:
-            return redirect("cadastrar_conta")
+    # Se veio do selecionar_conta: Regasta a conta_selecionada
+    conta_selecionada_id = request.session.get("conta_selecionada")
+
+    if not conta_selecionada_id:
+        # Verificação das contas do usuario
+        # Verifica as contas ATIVAS do usuário autenticado
+        contas_usuario = Conta.objects.filter(id_user=request.user.id, ativa=True)
+        num_contas = contas_usuario.count()  # Conta o número de contas associadas
+
+        # Quando o usuário só tiver 1 conta, não precisa fazer nenhuma verificação,
+        # somente carregar os dados da página conta_cliente normalmente
+        if num_contas == 0:
+            # Se não for Gerente
+            if not request.user.is_superuser:
+                messages.add_message(
+                    request,
+                    constants.WARNING,
+                    "Ainda não possui Contas Ativas no Banco.",
+                )
+                return redirect("editar_usuario")
+            # Se for Gerente
+            else:
+                messages.add_message(
+                    request,
+                    constants.WARNING,
+                    "Ainda não possui Contas Ativas no Banco.",
+                )
+                return redirect("listar_contas")
+        elif num_contas > 1:
+            if not request.user.is_superuser:
+                return redirect("selecionar_conta")
+            else:
+                return redirect("listar_contas")
 
     # Via link ou direto no navegador
     if request.method == "GET":
-        dados_conta_cliente = Conta.objects.get(id_user=request.user.id)
+        # Só pega esses dados da conta pelo usuário logado, se não tiver sido passado
+        # a conta na sessão pelo selecionar_conta
+        if not conta_selecionada_id:
+            dados_conta_cliente = Conta.objects.get(id_user=request.user.id)
+        else:
+            dados_conta_cliente = Conta.objects.get(id=conta_selecionada_id)
         dados_cliente = User.objects.get(id=request.user.id)
         # Apesar as últimas 3 movimentações da conta
         dados_movimentacoes = Movimentacao.objects.filter(
@@ -278,9 +332,6 @@ def conta_cliente(request):
         if operacao == "deposito":
             valor_deposito = formatar_valor(request.POST.get("valor_deposito"))
 
-            # print(f"\n\n\nO valor_deposito: {valor_deposito}\n\n\n")
-            # input("Pressione Enter para continuar...")
-
             # if valor_deposito <= 0:
             if valor_deposito <= Decimal("0.00"):
                 messages.error(
@@ -288,18 +339,19 @@ def conta_cliente(request):
                     "Valor de depósito inválido.\nNão é possível realizar o depósito de R$ 0,00 reais.",
                 )
             else:
-                dados_conta_cliente = Conta.objects.get(id_user=request.user.id)
+                # Só pega esses dados da conta pelo usuário logado, se não tiver sido passado
+                # a conta na sessão pelo selecionar_conta
+                if not conta_selecionada_id:
+                    dados_conta_cliente = Conta.objects.get(id_user=request.user.id)
+                else:
+                    dados_conta_cliente = Conta.objects.get(id=conta_selecionada_id)
+                # dados_conta_cliente = Conta.objects.get(id_user=request.user.id)
                 saldo = Decimal(dados_conta_cliente.saldo)
                 # saldo = float(dados_conta_cliente.saldo)
 
                 # Calcula novo saldo após operação de depósito
                 saldo_atualizado = saldo + valor_deposito
                 data_atual = datetime.now()
-
-                # print(
-                #     f"\n\nSaldo Atualizado: {saldo_atualizado} - Valor: {valor_deposito}\n\n"
-                # )
-                # input("Pressione Enter para continuar...")
 
                 # Salva a movimentação no banco
                 try:
@@ -322,7 +374,6 @@ def conta_cliente(request):
 
         elif operacao == "saque":
             valor_saque = formatar_valor(request.POST.get("valor_saque"))
-            # valor_saque = float(formatar_valor(request.POST.get("valor_saque")))
             # if valor_saque <= 0:
             if valor_saque <= Decimal("0.00"):
                 messages.error(
@@ -331,17 +382,15 @@ def conta_cliente(request):
                 )
             else:
                 sacou = False
-                dados_conta_cliente = Conta.objects.get(id_user=request.user.id)
+                # Só pega esses dados da conta pelo usuário logado, se não tiver sido passado
+                # a conta na sessão pelo selecionar_conta
+                if not conta_selecionada_id:
+                    dados_conta_cliente = Conta.objects.get(id_user=request.user.id)
+                else:
+                    dados_conta_cliente = Conta.objects.get(id=conta_selecionada_id)
+                # dados_conta_cliente = Conta.objects.get(id_user=request.user.id)
                 saldo = Decimal(dados_conta_cliente.saldo)
                 limite_especial = Decimal(dados_conta_cliente.limite_especial)
-                # saldo = float(dados_conta_cliente.saldo)
-                # limite_especial = float(dados_conta_cliente.limite_especial)
-
-                # print(f"\n\nValor de saque do input formatado: {valor_saque}\n\n")
-                # novo_valor_input = request.POST.get("valor_saque")
-                # print(
-                #     f"\n\nValor de saque do input antes de formatar: {novo_valor_input}\n\n"
-                # )
 
                 # Possui saldo suficiente
                 if saldo >= valor_saque:
@@ -391,7 +440,13 @@ def conta_cliente(request):
 
         # Após salvar (success) ou não (fail), recarrega a página com a mensagem:
         # Obter os dados atualizados para envio para o template
-        dados_conta_cliente = Conta.objects.get(id_user=request.user.id)
+        # Só pega esses dados da conta pelo usuário logado, se não tiver sido passado
+        # a conta na sessão pelo selecionar_conta
+        if not conta_selecionada_id:
+            dados_conta_cliente = Conta.objects.get(id_user=request.user.id)
+        else:
+            dados_conta_cliente = Conta.objects.get(id=conta_selecionada_id)
+        # dados_conta_cliente = Conta.objects.get(id_user=request.user.id)
         dados_cliente = User.objects.get(id=request.user.id)
         # Apesar as últimas 3 movimentações da conta
         dados_movimentacoes = Movimentacao.objects.filter(
@@ -537,7 +592,7 @@ def listar_contas(request):
 
     if not request.user.is_superuser:
         messages.warning(
-            request, "Acesso negado, somente Gerentes podem editar contas."
+            request, "Acesso negado, somente Gerentes podem listar contas."
         )
         return redirect("conta_cliente")
 
@@ -545,7 +600,7 @@ def listar_contas(request):
     if request.method == "GET":
 
         # Pega do models os tipos de contas e os dados para preencher no select, caso alterado já altera no form automaticamente
-        dados_contas = Conta.objects.all()
+        dados_contas = Conta.objects.all().order_by("id_user_id")
         TIPO_CONTA_CHOICES = Conta.TIPO_CONTA_CHOICES
 
         return render(
@@ -613,3 +668,32 @@ def ativar_conta(request, numero_conta):
         messages.info(request, "A conta já está ativa.")
 
     return redirect("listar_contas")
+
+
+@login_required
+def selecionar_conta(request):
+    if request.method == "POST":
+        conta_id = request.POST.get("conta")
+        if conta_id:
+            try:
+                conta_selecionada = Conta.objects.get(id=conta_id)
+                # Armazena a ID da conta selecionada na sessão
+                request.session["conta_selecionada"] = conta_id
+                # Redireciona para a página conta_cliente
+                return redirect("conta_cliente")
+            except Conta.DoesNotExist:
+                # Lida com a exceção caso a conta não seja encontrada
+                return render(
+                    request,
+                    "selecionar_conta.html",
+                    {
+                        "mensagem": "Conta não encontrada.",
+                        "contas_ativas": Conta.objects.filter(
+                            id_user=request.user, ativa=True
+                        ),
+                    },
+                )
+
+    # Se o método não for POST, ou se algo der errado, renderiza o formulário
+    contas_ativas = Conta.objects.filter(id_user=request.user, ativa=True)
+    return render(request, "selecionar_conta.html", {"contas_ativas": contas_ativas})
