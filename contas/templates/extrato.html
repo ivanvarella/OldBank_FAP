@@ -100,12 +100,15 @@
                     <div class="w-100">
                         <label for="tipo" class="form-label">Tipo de Movimentação:</label>
                         <div class="input-group">
-                            <select name="tipo" class="form-select" id="tipo">
-                                <option value="todos">Todos</option>
-                                <option value="2">Depósitos</option>
-                                <option value="3">Saques</option>
-                                <option value="4">Transferências</option>
-                            </select>
+                            <select name="tipo" id="tipo" class="form-select">
+                              <option value="todos">Todas as movimentações</option>
+                              <option value="1">Depósitos</option>
+                              <option value="2">Saques</option>
+                              <option value="3">Pagamentos</option>
+                              <option value="4">Transferências enviadas</option>
+                              <option value="5">Transferências recebidas</option>
+                              <option value="6">Todas as transferências</option>
+                          </select>
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary ms-4">Gerar</button>

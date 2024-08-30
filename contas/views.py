@@ -692,13 +692,18 @@ def extrato(request, numero_conta):
 
         # Aplica o filtro de tipo de movimentação, se não for "todos"
         if tipo_movimentacao and tipo_movimentacao != "todos":
-            filtros["tipo_movimentacao"] = tipo_movimentacao
+            if tipo_movimentacao == "4":  # Transferência enviada
+                filtros["tipo_movimentacao"] = 4
+            elif tipo_movimentacao == "5":  # Transferência recebida
+                filtros["tipo_movimentacao"] = 5
+            elif tipo_movimentacao == "6":  # Todas as transferências
+                filtros["tipo_movimentacao__in"] = [4, 5]
+            else:
+                filtros["tipo_movimentacao"] = tipo_movimentacao
+
             tipo_aplicado = dict(tipo_movimentacao_choices).get(
                 int(tipo_movimentacao), "Todos"
             )
-
-        # print(f"\n\nFiltros aplicados: {filtros}\n\n")
-        # Filtros aplicados: {'conta': <Conta: Id do usuário: admin - Número da conta: 626013 - Saldo: 1500.00>, 'tipo_movimentacao': '2'}
 
         # Recupera as movimentações filtradas
         dados_movimentacoes = Movimentacao.objects.filter(**filtros).order_by(
