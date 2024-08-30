@@ -153,7 +153,10 @@
                     {% for conta_transferencia in contas_users %}
                       {% for tipo_conta_id, tipo_conta_nome in tipo_conta_choices %}
                         {% if tipo_conta_id == conta_transferencia.tipo_conta %}
-                          <option value="{{conta_transferencia.numero_conta}}">Número da Conta: {{conta_transferencia.numero_conta}} - {{conta_transferencia.id_user__first_name}} {{conta_transferencia.id_user__last_name}} - {{tipo_conta_nome}}</option>
+                          <!-- Não pode transferir para a mesma conta, ou seja, a conta atual -->
+                          {% if conta_transferencia.numero_conta != dados_conta_cliente.numero_conta %}
+                            <option value="{{conta_transferencia.numero_conta}}">Número da Conta: {{conta_transferencia.numero_conta}} - {{conta_transferencia.id_user__first_name}} {{conta_transferencia.id_user__last_name}} - {{tipo_conta_nome}}</option>
+                          {% endif %}
                         {% endif %}
                       {% endfor %}
                     {% endfor %}

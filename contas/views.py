@@ -166,81 +166,6 @@ def cadastrar_conta(request):
     return render(request, "cadastro_conta.html")
 
 
-# @login_required(login_url="/usuarios/logar")
-# def editar_conta(request, numero_conta):
-#     # Regata os dados da Conta para preencher os inputs de acordo com os dados do Banco
-#     dados_conta_cliente = Conta.objects.get(numero_conta=numero_conta)
-
-#     # Resgata os dados do cliente da Conta
-#     dados_cliente = User.objects.get(id=dados_conta_cliente.id_user.id)
-
-#     if not request.user.is_superuser:
-#         messages.warning(
-#             request, "Acesso negado, somente Gerentes podem editar contas."
-#         )
-#         return redirect("conta_cliente")
-
-#     # Resgata os dados CHOICES da models
-#     TIPO_CONTA_CHOICES = Conta.TIPO_CONTA_CHOICES
-
-#     # Flag para edição de conta
-#     editar_conta = True
-
-#     # Via link ou direto no navegador
-#     if request.method == "GET":
-
-#         return render(
-#             request,
-#             "cadastrar_conta.html",
-#             {
-#                 "tipo_conta_choices": TIPO_CONTA_CHOICES,
-#                 "dados_conta_cliente": dados_conta_cliente,
-#                 "dados_cliente": dados_cliente,
-#                 "editar_conta": editar_conta,
-#             },
-#         )
-
-#     elif request.method == "POST":
-#         conta = get_object_or_404(Conta, numero_conta=numero_conta)
-
-#         # Resgatando os dados do formulário de edição de conta
-#         limite_especial = formatar_valor(request.POST.get("limite_especial"))
-#         print(f"\n\nAtiva do request: {request.POST.get('ativa') == 'on'}\n\n")
-#         # Verifica se o campo "ativa" foi enviado na solicitação POST
-#         # Verifica se o campo "ativa" foi enviado na solicitação POST
-#         if request.POST.get("ativa") == "on":
-#             ativa = True
-#         else:
-#             ativa = (
-#                 False  # Mantém o valor atual se "ativa" não estiver na solicitação POST
-#             )
-
-#         print(f"\n\nativa após lógica: {ativa}\n\n")
-
-#         try:
-#             # Atualizando os campos específicos
-#             conta.limite_especial = Decimal(limite_especial)
-#             conta.ativa = ativa
-
-#             conta.save()
-#             messages.success(request, "Conta atualizada com sucesso.")
-#         except ValueError:
-#             messages.error(
-#                 request, "Erro ao atualizar a conta. Verifique os valores inseridos."
-#             )
-#             return render(
-#                 request,
-#                 "cadastrar_conta.html",
-#                 {
-#                     "tipo_conta_choices": TIPO_CONTA_CHOICES,
-#                     "dados_conta_cliente": dados_conta_cliente,
-#                     "dados_cliente": dados_cliente,
-#                     "editar_conta": editar_conta,
-#                 },
-#             )
-
-
-#         return redirect("listar_contas")
 @login_required(login_url="/usuarios/logar")
 def editar_conta(request, numero_conta):
     """
@@ -541,8 +466,115 @@ def conta_cliente(request):
                         messages.error(request, f"Erro ao tentar realizar o saque: {e}")
 
         elif operacao == "transferencia":
-            pass
+            # Resgatar os valores do formulário
+            valor_transferencia = formatar_valor(
+                request.POST.get("valor_transferencia")
+            )
+            numero_conta_destino = request.POST.get("conta_destino_transferencia")
 
+            if valor_transferencia <= Decimal("0.00"):
+                messages.error(
+                    request,
+                    "Valor de transferência inválido.\nNão é possível realizar a transferência de R$ 0,00 reais.",
+                )
+            else:
+                transferiu = False
+
+                # Resgatar a conta de origem
+                if not conta_selecionada_id:
+                    conta_origem = Conta.objects.get(id_user=request.user.id)
+                else:
+                    conta_origem = Conta.objects.get(id=conta_selecionada_id)
+
+                saldo_origem = Decimal(conta_origem.saldo)
+                limite_especial = Decimal(conta_origem.limite_especial)
+
+                # Verificar se a conta de destino existe
+                conta_destino = Conta.objects.filter(
+                    numero_conta=numero_conta_destino, ativa=True
+                ).first()
+
+                if not conta_destino:
+                    messages.error(
+                        request,
+                        "Conta de destino não encontrada. Por favor, verifique o número da conta.",
+                    )
+                else:
+                    # Possui saldo suficiente
+                    if saldo_origem >= valor_transferencia:
+                        # Atualizar saldo da conta de origem
+                        saldo_origem_atualizado = saldo_origem - valor_transferencia
+                        data_atual = datetime.now()
+                        messages.success(request, "Saque realizado com sucesso!")
+
+                        # Atualizar saldo da conta de destino
+                        saldo_destino_atualizado = (
+                            Decimal(conta_destino.saldo) + valor_transferencia
+                        )
+                        transferiu = True
+
+                    # O saldo é insuficiente mas possui limite no limite_especial
+                    elif saldo_origem + limite_especial >= valor_transferencia:
+                        # Atualizar saldo na conta origem
+                        saldo_origem_atualizado = (
+                            saldo_origem - valor_transferencia
+                        )  # Fica negativo no limite do saldo+limite_especial
+                        data_atual = datetime.now()
+                        messages.warning(
+                            request,
+                            "Transferência realizada com sucesso!\nUtilizando o limite especial da conta.",
+                        )
+
+                        # Atulizar saldo na conta destino
+                        saldo_destino_atualizado = (
+                            Decimal(conta_destino.saldo) + valor_transferencia
+                        )
+                        transferiu = True
+                    # Não possui saldo ou limite especial o suficiente
+                    # Não faz nada e re-renderiza a página com a mensagem
+                    else:
+                        maximo_disponivel = saldo_origem + limite_especial
+                        messages.error(
+                            request,
+                            f"Saldo insuficiente. Seu saldo atual é de R${saldo_origem:.2f} e seu limite especial é de R${limite_especial:.2f}.\nO máximo disponível para saque é de R${maximo_disponivel:.2f}.",
+                        )
+
+                    if transferiu:
+                        # Salvar a movimentação na conta de origem
+                        try:
+                            # ----------------- Conta de origem -------------
+                            nova_movimentacao_origem = Movimentacao.objects.create(
+                                conta=conta_origem,
+                                tipo_movimentacao=4,  # Transferência enviada
+                                valor=valor_transferencia,
+                                data_movimentacao=data_atual,
+                                conta_transferencia=conta_destino,
+                            )
+
+                            # Atualiza o saldo da conta no banco
+                            conta_origem.saldo = saldo_origem_atualizado
+                            conta_origem.save()
+
+                            # ----------------- Conta de destino -------------
+                            nova_movimentacao_destino = Movimentacao.objects.create(
+                                conta=conta_destino,
+                                tipo_movimentacao=5,  # Transferência recebida
+                                valor=valor_transferencia,
+                                data_movimentacao=data_atual,
+                                conta_transferencia=conta_origem,
+                            )
+
+                            # Atualiza o saldo da conta no banco
+                            conta_destino.saldo = saldo_destino_atualizado
+                            conta_destino.save()
+
+                        except Exception as e:
+                            # Não precisa redirecionar aqui pois está renderizando a página no final com a mensagem de erro
+                            messages.error(
+                                request, f"Erro ao tentar realizar a transferência: {e}"
+                            )
+
+        # -----------------------------------------------------------------------------------
         # Após salvar (success) ou não (fail), recarrega a página com a mensagem:
         # Obter os dados atualizados para envio para o template
         # Só pega esses dados da conta pelo usuário logado, se não tiver sido passado
