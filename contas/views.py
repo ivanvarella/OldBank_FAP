@@ -696,7 +696,7 @@ def extrato(request, numero_conta):
                 filtros["tipo_movimentacao"] = 4
             elif tipo_movimentacao == "5":  # Transferência recebida
                 filtros["tipo_movimentacao"] = 5
-            elif tipo_movimentacao == "6":  # Todas as transferências
+            elif tipo_movimentacao == "10":  # Todas as transferências
                 filtros["tipo_movimentacao__in"] = [4, 5]
             else:
                 filtros["tipo_movimentacao"] = tipo_movimentacao
