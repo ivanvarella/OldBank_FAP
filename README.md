@@ -1,4 +1,5 @@
 <div align="center" style="padding-top: 20px;">
+  <img src="templates/static/geral/img/logo_bank.png" alt="Logo do Projeto" width="150"/>
   
 # Projeto Django Old Bank
 

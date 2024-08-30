@@ -21,9 +21,9 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
+                    {% comment %} <li class="nav-item">
                         <a class="nav-link active" aria-current="page" href="{% url 'logar' %}">Home</a>
-                    </li>
+                    </li> {% endcomment %}
                     <li class="nav-item">
                       <a class="nav-link" href="{% url "listar_contas" %}"> | Listar contas</a>
                     </li>
@@ -41,6 +41,12 @@
         </div>
     </nav>
 </header>
+
+<div class="row justify-content-center mb-5"> 
+  <div class="col-md-4 text-center"> 
+    <img src="{% static '/geral/img/logo_bank.png' %}" alt="Logo Bank" class="img-fluid mt-5" style="max-width: 200px; max-height: 100px;">
+  </div> 
+</div>
 
   <div class="container">
     <div class="row justify-content-center">
